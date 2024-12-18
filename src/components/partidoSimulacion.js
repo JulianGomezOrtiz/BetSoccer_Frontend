@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getPartidos, updatePartido } from "../services/api";
+import { getPartidos, updatePartido, getEquipos } from "../services/api";
 import "../partidoSimulacion.css"; // Importar estilos
 
 const PartidoSimulacion = () => {
@@ -10,28 +10,49 @@ const PartidoSimulacion = () => {
   useEffect(() => {
     const fetchPartidos = async () => {
       try {
-        const response = await getPartidos();
-        console.log("Respuesta completa:", response);
+        const [partidosResponse, equiposResponse] = await Promise.all([getPartidos(), getEquipos()]);
 
-        // Convierte el array de arrays en un array de objetos
-        const partidosData = response.data.map(partido => ({
-          id_partido: partido[0],
-          equipo_local: partido[1],
-          equipo_visitante: partido[2],
-          fecha_inicio: partido[3],
-          fecha_fin: partido[4],
-          estadio: partido[5],
-          estado: partido[6],
-          marcador_local: partido[7],
-          marcador_visitante: partido[8],
-        }));
+        // Log para verificar las respuestas de las APIs
+        console.log("Respuesta de partidos:", partidosResponse);
+        console.log("Respuesta de equipos:", equiposResponse);
+
+        // Crea un mapa para acceder rápidamente a los nombres de los equipos
+        const equiposMap = equiposResponse.data.reduce((acc, equipo) => {
+          acc[equipo[0]] = equipo[1]; // Mapear id_equipo => nombre_equipo
+          return acc;
+        }, {});
+
+        console.log("Mapa de equipos:", equiposMap);
+
+        // Mapea los partidos para incluir los nombres de los equipos
+        const partidosData = partidosResponse.data.map(partido => {
+          const equipoLocal = equiposMap[partido[1]]; // id_equipo_local es el segundo campo
+          const equipoVisitante = equiposMap[partido[2]]; // id_equipo_visitante es el tercer campo
+
+          if (!equipoLocal || !equipoVisitante) {
+            console.error(`Datos incompletos para el partido con ID: ${partido[0]}`);
+          }
+
+          return {
+            id_partido: partido[0],
+            equipo_local: equipoLocal,
+            equipo_visitante: equipoVisitante,
+            fecha: partido[3], // fecha_inicio es el cuarto campo
+            hora: partido[4], // fecha_fin es el quinto campo
+            estadio: partido[5],
+            estado: partido[6],
+            marcador_local: partido[7],
+            marcador_visitante: partido[8],
+          };
+        });
 
         setPartidos(partidosData);
         console.log("Partidos cargados:", partidosData);
       } catch (error) {
-        console.error("Error al cargar los partidos", error);
+        console.error("Error al cargar los partidos o equipos", error);
       }
     };
+
     fetchPartidos();
   }, []);
 
@@ -120,27 +141,34 @@ const PartidoSimulacion = () => {
         {partidos.length === 0 ? (
           <p>No hay partidos disponibles para simular.</p>
         ) : (
-          partidos.map((partido) => (
-            // Validación de datos antes de renderizar
-            partido.equipo_local && partido.equipo_visitante ? (
-              <div key={partido.id_partido}> {/* Usamos id_partido como clave */}
-                <h3>
-                  {partido.equipo_local} vs {partido.equipo_visitante}
-                </h3>
-                <p>
-                  Fecha: {new Date(partido.fecha).toLocaleString()} {/* Formatear la fecha */}
+          partidos.map((partido) => {
+            // Validamos si los datos del partido son completos
+            if (partido.equipo_local && partido.equipo_visitante) {
+              return (
+                <div key={partido.id_partido}> {/* Usamos id_partido como clave */}
+                  <h3>
+                    {partido.equipo_local} vs {partido.equipo_visitante}
+                  </h3>
+                  <p>
+                    Fecha: {new Date(partido.fecha).toLocaleString()} {/* Formatear la fecha */}
+                  </p>
+                  <button
+                    onClick={() => simularPartido(partido)}
+                    disabled={simulando || partido.estado === "finalizado"}
+                  >
+                    {simulando ? "Simulando..." : "Iniciar Simulación"}
+                  </button>
+                </div>
+              );
+            } else {
+              // Aquí nos aseguramos de que el key sea único en caso de datos incompletos
+              return (
+                <p key={`incompleto-${partido.id_partido || Math.random()}`}>
+                  Datos incompletos para el partido {partido.id_partido || "desconocido"}
                 </p>
-                <button
-                  onClick={() => simularPartido(partido)}
-                  disabled={simulando || partido.estado === "finalizado"}
-                >
-                  {simulando ? "Simulando..." : "Iniciar Simulación"}
-                </button>
-              </div>
-            ) : (
-              <p key={partido.id_partido}>Datos incompletos para el partido {partido.id_partido}</p>
-            )
-          ))
+              );
+            }
+          })
         )}
       </div>
     </div>

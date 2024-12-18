@@ -4,6 +4,7 @@ import PartidoSimulacion from "./components/partidoSimulacion";
 import Apuestas from "./components/apuestas";
 import Login from "./components/login";
 import Registro from "./components/registro";
+import jugadorLogo from './assets/jugador.svg';
 import './App.css';
 
 function App() {
@@ -12,15 +13,15 @@ function App() {
       <div>
         {/* Navbar de Bootstrap */}
         <nav className="navbar navbar-expand-lg navbar-light bg-light">
-          <a className="navbar-brand" href="#">
+          <a className="navbar-brand fw-bold fs-4" href="/">
             <img 
-              src="https://getbootstrap.com/docs/5.1/assets/brand/bootstrap-logo.svg" 
-              alt="Bootstrap Logo" 
-              width="30" 
-              height="30" 
-              className="d-inline-block align-top"
+              src={jugadorLogo} 
+              alt="JugadorLogo" 
+              width="50" 
+              height="50" 
+              className="d-inline-block align-center ms-3"
             />
-            Simulador de Apuestas
+            BetGame
           </a>
           <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span className="navbar-toggler-icon"></span>
@@ -28,19 +29,19 @@ function App() {
           <div className="collapse navbar-collapse" id="navbarNav">
             <ul className="navbar-nav ms-auto">
               <li className="nav-item">
-                <Link className="nav-link active" to="/">Inicio</Link>
+                <Link className="nav-link fw-bold" to="/">Inicio</Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="/apuestas">Apuestas</Link>
+                <Link className="nav-link fw-bold" to="/apuestas">Apuestas</Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="/partidos">Partidos</Link>
+                <Link className="nav-link fw-bold" to="/partidos">Partidos</Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="/login">Iniciar Sesión</Link>
+                <Link className="nav-link fw-bold" to="/login">Iniciar Sesión</Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="/registro">Registrarse</Link>
+                <Link className="nav-link fw-bold" to="/registro">Registrarse</Link>
               </li>
             </ul>
           </div>

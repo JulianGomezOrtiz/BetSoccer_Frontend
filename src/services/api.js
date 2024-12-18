@@ -17,3 +17,7 @@ export const getUsuarios = async () => {
 export const postApuesta = async (apuesta) => {
   return await axios.post(`${API_URL}/apuestas`, apuesta);
 };
+
+export const getEquipos = async () => {
+  return axios.get(`${API_URL}/equipos`); // URL completa
+};
