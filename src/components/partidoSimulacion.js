@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getPartidos, updatePartido } from "../services/api";
-import "./partidoSimulacion.css"; // Importar estilos
+import "../partidoSimulacion.css"; // Importar estilos
 
 const PartidoSimulacion = () => {
   const [partidos, setPartidos] = useState([]);
