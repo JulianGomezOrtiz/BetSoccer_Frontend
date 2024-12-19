@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const Apuestas = () => {
@@ -9,7 +10,7 @@ const Apuestas = () => {
     monto: 0,
     cuota: 0,
     estado: "activa",
-    tipo_apuesta: "goles", // Se puede cambiar entre "goles", "marcador" o "estatus"
+    tipo_apuesta: "goles", // Puede ser "goles", "marcador" o "estatus"
     apuesta_goles_local: 0,
     apuesta_goles_visitante: 0,
     apuesta_marcador_local: 0,
@@ -18,52 +19,87 @@ const Apuestas = () => {
   });
 
   const [error, setError] = useState("");
+  const [usuarioLogueado, setUsuarioLogueado] = useState(null);
+  const [idUsuario, setIdUsuario] = useState(""); // Estado para el id_usuario
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const usuario = localStorage.getItem("usuarioLogueado");
+    if (usuario) {
+      const usuarioObj = JSON.parse(usuario);
+      setUsuarioLogueado(usuarioObj);
+      setApuesta((prev) => ({ ...prev, id_usuario: usuarioObj.id })); // Asigna el ID desde el inicio
+    }
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
+    setIdUsuario(e.target.value);
     setApuesta((prevApuesta) => ({
       ...prevApuesta,
-      [name]: type === "number" ? parseFloat(value.replace(',', '.')) : value,
+      [name]: type === "number" ? parseFloat(value) : value.trim(), // Trim para eliminar espacios
     }));
   };
 
   const validateData = () => {
-    if (!apuesta.id_usuario || !apuesta.id_partido || !apuesta.id_cuenta) {
+    if (!apuesta.id_usuario || !apuesta.id_partido.trim() || !apuesta.id_cuenta.trim()) {
       return "Usuario, partido y cuenta bancaria son obligatorios.";
     }
-  
-    if (isNaN(parseFloat(apuesta.monto)) || apuesta.monto <= 0) {
+
+    if (isNaN(apuesta.monto) || apuesta.monto <= 0) {
       return "El monto debe ser un número positivo.";
     }
-  
-    if (isNaN(parseFloat(apuesta.cuota)) || apuesta.cuota <= 0) {
+
+    if (isNaN(apuesta.cuota) || apuesta.cuota <= 0) {
       return "La cuota debe ser un número positivo.";
     }
-  
-    // Validaciones adicionales según el tipo de apuesta
+
     if (apuesta.tipo_apuesta === "goles") {
-      if (isNaN(parseFloat(apuesta.apuesta_goles_local)) || apuesta.apuesta_goles_local < 0) {
-        return "El número de goles del equipo local debe ser un número positivo o cero.";
+      if (isNaN(apuesta.apuesta_goles_local) || apuesta.apuesta_goles_local < 0) {
+        return "Los goles del equipo local deben ser positivos o cero.";
       }
-      if (isNaN(parseFloat(apuesta.apuesta_goles_visitante)) || apuesta.apuesta_goles_visitante < 0) {
-        return "El número de goles del equipo visitante debe ser un número positivo o cero.";
+      if (isNaN(apuesta.apuesta_goles_visitante) || apuesta.apuesta_goles_visitante < 0) {
+        return "Los goles del equipo visitante deben ser positivos o cero.";
       }
     }
-    // ... Resto de validaciones para marcador y estatus
-    return null; // No hay errores
+
+    return null; // Sin errores
   };
-  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Verificación si el usuario está logueado
+    if (!usuarioLogueado) {
+      alert("Debes iniciar sesión para realizar una apuesta.");
+      navigate("/login");
+      return;
+    }
+
     const validationError = validateData();
     if (validationError) {
       setError(validationError);
       return;
     } else {
-      setError(""); // Limpiar errores si la validación pasa
+      setError("");
     }
 
+    // Preparamos el objeto de datos a enviar
+    let apuestaEnviada = { ...apuesta };
+
+    // Dependiendo del tipo de apuesta, eliminamos los campos innecesarios
+    if (apuesta.tipo_apuesta === "estatus") {
+      // Si la apuesta es de tipo "estatus", eliminamos los campos de goles y marcador
+      delete apuestaEnviada.apuesta_goles_local;
+      delete apuestaEnviada.apuesta_goles_visitante;
+      delete apuestaEnviada.apuesta_marcador_local;
+      delete apuestaEnviada.apuesta_marcador_visitante;
+    } else if (apuesta.tipo_apuesta === "goles" || apuesta.tipo_apuesta === "marcador") {
+      // Si es de tipo goles o marcador, nos aseguramos de que los campos de resultado no se incluyan
+      delete apuestaEnviada.apuesta_resultado;
+    }
+
+    // Enviamos la solicitud al backend
     try {
       let endpoint;
       if (apuesta.tipo_apuesta === "goles") {
@@ -74,8 +110,24 @@ const Apuestas = () => {
         endpoint = "http://localhost:3001/api/apuestas_estatus";
       }
 
-      const response = await axios.post(endpoint, apuesta);
+      const response = await axios.post(endpoint, apuestaEnviada);
       alert(response.data.message || "Apuesta realizada con éxito");
+
+      // Reseteamos los valores después de la apuesta
+      setApuesta({
+        id_usuario: usuarioLogueado.id,
+        id_partido: "",
+        id_cuenta: "",
+        monto: 0,
+        cuota: 0,
+        estado: "activa",
+        tipo_apuesta: "goles",
+        apuesta_goles_local: 0,
+        apuesta_goles_visitante: 0,
+        apuesta_marcador_local: 0,
+        apuesta_marcador_visitante: 0,
+        apuesta_resultado: "",
+      });
     } catch (error) {
       console.error("Error al realizar la apuesta:", error);
       alert("Hubo un error al realizar la apuesta: " + (error.response?.data?.message || error.message));
@@ -86,7 +138,7 @@ const Apuestas = () => {
     <div className="container mt-5">
       <h2 className="text-center mb-4">Realizar Apuesta</h2>
       <form onSubmit={handleSubmit} className="p-4 border rounded bg-light">
-        {/* Mostrar mensaje de error si hay */}
+        {/* Mostrar error si existe */}
         {error && <div className="alert alert-danger">{error}</div>}
 
         <div className="mb-3">
@@ -96,8 +148,9 @@ const Apuestas = () => {
             className="form-control"
             id="id_usuario"
             name="id_usuario"
-            value={apuesta.id_usuario}
+            value={idUsuario} // No se debe permitir editar el id_usuario
             onChange={handleChange}
+            placeholder={`${usuarioLogueado?.nombre || ""} , por favor cambie su nombre por el identificador`}
             required
           />
         </div>
@@ -145,7 +198,6 @@ const Apuestas = () => {
           <label htmlFor="cuota" className="form-label">Cuota</label>
           <input
             type="number"
-            step="0.01"
             className="form-control"
             id="cuota"
             name="cuota"
@@ -153,22 +205,6 @@ const Apuestas = () => {
             onChange={handleChange}
             required
           />
-        </div>
-
-        <div className="mb-3">
-          <label htmlFor="estado" className="form-label">Estado</label>
-          <select
-            id="estado"
-            className="form-select"
-            name="estado"
-            value={apuesta.estado}
-            onChange={handleChange}
-            required
-          >
-            <option value="activa">Activa</option>
-            <option value="cerrada">Cerrada</option>
-            <option value="cancelada">Cancelada</option>
-          </select>
         </div>
 
         <div className="mb-3">
@@ -187,11 +223,11 @@ const Apuestas = () => {
           </select>
         </div>
 
-        {/* Apuesta por goles */}
+        {/* Campos condicionales por tipo de apuesta */}
         {apuesta.tipo_apuesta === "goles" && (
           <>
             <div className="mb-3">
-              <label htmlFor="apuesta_goles_local" className="form-label">Goles del Equipo Local</label>
+              <label htmlFor="apuesta_goles_local" className="form-label">Goles Local</label>
               <input
                 type="number"
                 className="form-control"
@@ -202,9 +238,8 @@ const Apuestas = () => {
                 required
               />
             </div>
-
             <div className="mb-3">
-              <label htmlFor="apuesta_goles_visitante" className="form-label">Goles del Equipo Visitante</label>
+              <label htmlFor="apuesta_goles_visitante" className="form-label">Goles Visitante</label>
               <input
                 type="number"
                 className="form-control"
@@ -218,7 +253,6 @@ const Apuestas = () => {
           </>
         )}
 
-        {/* Apuesta por marcador */}
         {apuesta.tipo_apuesta === "marcador" && (
           <>
             <div className="mb-3">
@@ -233,7 +267,6 @@ const Apuestas = () => {
                 required
               />
             </div>
-
             <div className="mb-3">
               <label htmlFor="apuesta_marcador_visitante" className="form-label">Marcador Visitante</label>
               <input
@@ -249,26 +282,26 @@ const Apuestas = () => {
           </>
         )}
 
-        {/* Apuesta por resultado */}
         {apuesta.tipo_apuesta === "estatus" && (
           <div className="mb-3">
-            <label htmlFor="apuesta_resultado" className="form-label">Resultado de la Apuesta</label>
+            <label htmlFor="apuesta_resultado" className="form-label">Resultado</label>
             <select
               id="apuesta_resultado"
-              className="form-select"
               name="apuesta_resultado"
+              className="form-select"
               value={apuesta.apuesta_resultado}
               onChange={handleChange}
               required
             >
+              <option value="">Seleccione un resultado</option>
               <option value="ganador local">Ganador Local</option>
-              <option value="ganador visitante">Ganador Visitante</option>
               <option value="empate">Empate</option>
+              <option value="ganador visitante">Ganador Visitante</option>
             </select>
           </div>
         )}
 
-        <button type="submit" className="btn btn-primary w-100">Realizar Apuesta</button>
+        <button type="submit" className="btn btn-primary">Realizar Apuesta</button>
       </form>
     </div>
   );
